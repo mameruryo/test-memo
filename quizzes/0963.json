@@ -1,0 +1,205 @@
+{
+  "title": "英単語お試し",
+  "dataset": [
+    {
+      "question": "streetcar",
+      "answer": "路面電車"
+    },
+    {
+      "question": "vital",
+      "answer": "不可欠な"
+    },
+    {
+      "question": "presently",
+      "answer": "現在"
+    },
+    {
+      "question": "atomic bombing",
+      "answer": "原爆投下"
+    },
+    {
+      "question": "male",
+      "answer": "男性の"
+    },
+    {
+      "question": "battleground",
+      "answer": "戦場"
+    },
+    {
+      "question": "replace",
+      "answer": "…を（～に）取り替える"
+    },
+    {
+      "question": "replacement",
+      "answer": "交替要員"
+    },
+    {
+      "question": "demanding",
+      "answer": "きつい"
+    },
+    {
+      "question": "atomic bomb",
+      "answer": "原子爆弾"
+    },
+    {
+      "question": "devastate",
+      "answer": "…を完全に破壊する"
+    },
+    {
+      "question": "endure",
+      "answer": "耐える"
+    },
+    {
+      "question": "evacuate",
+      "answer": "避難する"
+    },
+    {
+      "question": "swollen",
+      "answer": "[swellの過去分詞]"
+    },
+    {
+      "question": "swell",
+      "answer": "腫れる"
+    },
+    {
+      "question": "repeatedly",
+      "answer": "繰り返して"
+    },
+    {
+      "question": "among",
+      "answer": "〜の間で"
+    },
+    {
+      "question": "operation",
+      "answer": "手術"
+    },
+    {
+      "question": "atomic",
+      "answer": "原子の"
+    },
+    {
+      "question": "bombing",
+      "answer": "爆弾"
+    },
+    {
+      "question": "during",
+      "answer": "〜の間に"
+    },
+    {
+      "question": "war",
+      "answer": "戦争"
+    },
+    {
+      "question": "driver",
+      "answer": "運転手"
+    },
+    {
+      "question": "fight",
+      "answer": "戦い"
+    },
+    {
+      "question": "girl",
+      "answer": "少女"
+    },
+    {
+      "question": "operate",
+      "answer": "手術する"
+    },
+    {
+      "question": "daily",
+      "answer": "毎日の"
+    },
+    {
+      "question": "classmate",
+      "answer": "クラスメイト"
+    },
+    {
+      "question": "proud",
+      "answer": "誇りに思っている"
+    },
+    {
+      "question": "August",
+      "answer": "8月"
+    },
+    {
+      "question": "addition",
+      "answer": "追加"
+    },
+    {
+      "question": "passenger",
+      "answer": "乗客"
+    },
+    {
+      "question": "seriously",
+      "answer": "ひどく、深刻に"
+    },
+    {
+      "question": "injure",
+      "answer": "…を負傷させる"
+    },
+    {
+      "question": "kill",
+      "answer": "…を殺す"
+    },
+    {
+      "question": "pain",
+      "answer": "痛み"
+    },
+    {
+      "question": "hundred",
+      "answer": "百"
+    },
+    {
+      "question": "piece",
+      "answer": "破片、一片"
+    },
+    {
+      "question": "glass",
+      "answer": "ガラス"
+    },
+    {
+      "question": "safer",
+      "answer": "より安全な"
+    },
+    {
+      "question": "place",
+      "answer": "場所"
+    },
+    {
+      "question": "lie",
+      "answer": "うそ"
+    },
+    {
+      "question": "road",
+      "answer": "道路"
+    },
+    {
+      "question": "terrible",
+      "answer": "ひどい、恐ろしい"
+    },
+    {
+      "question": "burn",
+      "answer": "やけど（を負わせる）"
+    },
+    {
+      "question": "tag",
+      "answer": "名札"
+    },
+    {
+      "question": "realize",
+      "answer": "…に気づく"
+    },
+    {
+      "question": "close",
+      "answer": "近い"
+    },
+    {
+      "question": "although",
+      "answer": "…だけれども"
+    },
+    {
+      "question": "leave",
+      "answer": "…を去る、出発する"
+    }
+  ]
+}
