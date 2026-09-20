@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>星々のクイズ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg-void: #0a0e1f;
+    --bg-nebula-1: #1b1440;
+    --bg-nebula-2: #2c1250;
+    --panel: rgba(18, 20, 40, 0.55);
+    --panel-border: rgba(255,255,255,0.16);
+    --panel-border-strong: rgba(255,255,255,0.32);
+    --text-primary: #eef1fa;
+    --text-muted: #9aa3c2;
+    --accent-aurora: #7fe0c8;
+    --accent-gold: #f2c14e;
+    --accent-rose: #ec6f8e;
+    --font-display: "Fraunces", Georgia, "Hiragino Mincho ProN", serif;
+    --font-mono: "IBM Plex Mono", "SF Mono", Consolas, "Hiragino Kaku Gothic ProN", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+
+  body {
+    position: relative;
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: calc(40px + env(safe-area-inset-top, 0px)) 20px calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* -------- backdrop -------- */
+  .backdrop { position: fixed; inset: 0; z-index: -2; background: var(--bg-void); overflow: hidden; }
+  .nebula { position: absolute; border-radius: 50%; filter: blur(70px); mix-blend-mode: screen; opacity: 0.55; }
+  .nebula.one { width: 60vw; height: 60vw; top: -15vw; left: -10vw; background: radial-gradient(circle, var(--bg-nebula-2), transparent 70%); }
+  .nebula.two { width: 50vw; height: 50vw; bottom: -20vw; right: -15vw; background: radial-gradient(circle, var(--bg-nebula-1), transparent 70%); }
+  #stars { position: absolute; inset: 0; }
+  .star { position: absolute; background: #fff; border-radius: 50%; animation: twinkle 4.5s ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .star { animation: none; opacity: 0.6; } }
+
+  /* -------- layout shell -------- */
+  .shell { position: relative; z-index: 1; width: 100%; max-width: 620px; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+
+  header.masthead { text-align: center; max-width: 520px; }
+  header.masthead h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 5vw, 40px); letter-spacing: 0.01em; margin: 0 0 10px; }
+  header.masthead p { color: var(--text-muted); font-size: 14px; line-height: 1.7; margin: 0; }
+
+  /* -------- HUD panel -------- */
+  .hud-panel { position: relative; width: 100%; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px; padding: 32px 28px; backdrop-filter: blur(6px); }
+  .hud-panel::before, .hud-panel::after { content: ""; position: absolute; width: 22px; height: 22px; }
+  .hud-panel::before { top: -1px; left: -1px; border-top: 2px solid var(--panel-border-strong); border-left: 2px solid var(--panel-border-strong); }
+  .hud-panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--panel-border-strong); border-right: 2px solid var(--panel-border-strong); }
+
+  .panel-title { font-family: var(--font-display); font-size: 18px; margin-bottom: 6px; }
+  .panel-sub { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; margin-bottom: 18px; }
+
+  .divider-row { display: flex; align-items: center; gap: 12px; color: var(--text-muted); font-size: 11px; width: 100%; }
+  .divider-row::before, .divider-row::after { content: ""; flex: 1; height: 1px; background: var(--panel-border); }
+
+  .code-entry-row { display: flex; gap: 10px; }
+  .code-entry-row input[type="text"] {
+    flex: 1; min-width: 0;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--panel-border-strong);
+    border-radius: 4px; color: var(--text-primary);
+    font-family: var(--font-mono); font-size: 20px;
+    letter-spacing: 0.35em; text-align: center; padding: 10px 8px;
+  }
+  .code-entry-row input[type="text"]:focus-visible { outline: 2px solid var(--accent-aurora); outline-offset: 2px; }
+
+  .field-row { margin-bottom: 18px; }
+  .field-row label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .field-row input[type="text"] {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--panel-border-strong); border-radius: 4px;
+    color: var(--text-primary); font-family: var(--font-mono); font-size: 14px; padding: 9px 10px;
+  }
+  .field-row input[type="text"]:focus-visible { outline: 2px solid var(--accent-aurora); outline-offset: 2px; }
+  #quiz-code-input { text-align: center; letter-spacing: 0.35em; font-size: 18px; }
+
+  /* -------- upload screen -------- */
+  .dropzone {
+    border: 1px dashed var(--panel-border-strong); border-radius: 4px;
+    padding: 34px 20px; text-align: center; cursor: pointer; display: block;
+    transition: border-color 0.2s, background-color 0.2s;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: var(--accent-aurora); background-color: rgba(127, 224, 200, 0.06); }
+  .dropzone .glyph { font-size: 30px; display: block; margin-bottom: 10px; opacity: 0.9; }
+  .dropzone .main-label { font-family: var(--font-display); font-size: 17px; margin-bottom: 6px; }
+  .dropzone .sub-label { color: var(--text-muted); font-size: 12.5px; line-height: 1.6; }
+  input[type="file"] { display: none; }
+
+  .format-hint {
+    margin-top: 18px; font-size: 12px; color: var(--text-muted); line-height: 1.8;
+    border-top: 1px solid var(--panel-border); padding-top: 16px;
+  }
+  .format-hint code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; color: var(--accent-aurora); }
+
+  .resume-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: rgba(242, 193, 78, 0.08); border: 1px solid rgba(242, 193, 78, 0.35);
+    border-radius: 5px; padding: 12px 16px; margin-bottom: 18px; font-size: 12.5px;
+  }
+  .resume-bar span { color: var(--text-primary); }
+  .resume-bar button { flex-shrink: 0; }
+
+  .error-msg { margin-top: 14px; color: var(--accent-rose); font-size: 12.5px; line-height: 1.7; }
+
+  /* -------- buttons -------- */
+  button {
+    font-family: var(--font-mono); font-size: 13px; cursor: pointer; border-radius: 4px;
+    border: 1px solid var(--panel-border-strong); background: rgba(255,255,255,0.05);
+    color: var(--text-primary); padding: 10px 18px;
+    transition: transform 0.12s ease, background-color 0.15s, border-color 0.15s;
+  }
+  button:hover { background: rgba(255,255,255,0.1); }
+  button:active { transform: scale(0.97); }
+  button:focus-visible { outline: 2px solid var(--accent-aurora); outline-offset: 2px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.primary { border-color: var(--accent-aurora); color: var(--accent-aurora); font-weight: 500; }
+  button.primary:hover { background: rgba(127, 224, 200, 0.12); }
+  button.ghost { border-color: var(--panel-border); color: var(--text-muted); }
+  button.correct { border-color: var(--accent-aurora); color: var(--accent-aurora); flex: 1; }
+  button.incorrect { border-color: var(--accent-rose); color: var(--accent-rose); flex: 1; }
+
+  /* -------- quiz screen -------- */
+  .progress-row { width: 100%; display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: var(--text-muted); letter-spacing: 0.02em; }
+  .progress-row .count { color: var(--accent-gold); font-weight: 500; }
+  .progress-track { width: 100%; height: 2px; background: rgba(255,255,255,0.1); margin: 8px 0 26px; position: relative; }
+  .progress-fill { position: absolute; inset: 0; background: var(--accent-gold); width: 0%; transition: width 0.3s ease; }
+
+  .card-scene { width: 100%; perspective: 1400px; }
+  .card-inner { position: relative; min-height: 260px; transition: transform 0.55s cubic-bezier(0.4, 0.1, 0.2, 1); transform-style: preserve-3d; }
+  @media (prefers-reduced-motion: reduce) { .card-inner { transition: none; } }
+  .card-inner.flipped { transform: rotateY(180deg); }
+  .card-inner.no-anim { transition: none !important; }
+
+  .card-face { position: absolute; inset: 0; backface-visibility: hidden; display: flex; flex-direction: column; justify-content: center; padding: 10px 6px; }
+  .card-face.back { transform: rotateY(180deg); }
+
+  .face-label { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; margin-bottom: 14px; }
+  .face-label.answer-label { color: var(--accent-gold); }
+  .question-text, .answer-text { font-family: var(--font-display); font-size: clamp(19px, 3.4vw, 25px); line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; }
+  .answer-text { color: var(--accent-gold); }
+
+  .card-actions { margin-top: 30px; display: flex; gap: 12px; }
+  .reveal-row { margin-top: 30px; display: flex; justify-content: center; }
+
+  .card-flash { animation: flashfeedback 0.35s ease; }
+  @keyframes flashfeedback {
+    0% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    30% { box-shadow: 0 0 0 3px var(--flash-color, var(--accent-aurora)); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  }
+
+  /* -------- results / preview shared -------- */
+  .score-readout { text-align: center; margin-bottom: 8px; }
+  .score-readout .big-score { font-family: var(--font-display); font-size: clamp(48px, 12vw, 68px); color: var(--accent-gold); line-height: 1; }
+  .score-readout .score-sub { color: var(--text-muted); font-size: 13px; margin-top: 8px; }
+
+  .preview-heading { text-align: center; margin-bottom: 4px; }
+  .preview-heading .count-big { font-family: var(--font-display); font-size: 21px; color: var(--accent-gold); }
+  .preview-heading .count-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  .count-select-row { display: flex; align-items: center; gap: 10px; margin: 20px 0 4px; font-size: 12.5px; color: var(--text-muted); }
+  .count-select-row input[type="number"] {
+    width: 68px; background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border-strong);
+    border-radius: 4px; color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; padding: 6px 8px;
+  }
+  .count-select-row input[type="number"]:focus-visible { outline: 2px solid var(--accent-aurora); outline-offset: 2px; }
+
+  .order-toggle { display: flex; gap: 10px; margin: 18px 0 20px; }
+  .order-toggle button { flex: 1; }
+  .order-toggle button.active { border-color: var(--accent-aurora); color: var(--accent-aurora); background: rgba(127, 224, 200, 0.1); }
+
+  .review-list { margin-top: 26px; display: flex; flex-direction: column; gap: 10px; max-height: 46vh; overflow-y: auto; padding-right: 4px; }
+  .review-item { border: 1px solid var(--panel-border); border-left: 3px solid var(--accent-aurora); border-radius: 3px; padding: 12px 14px; background: rgba(255,255,255,0.03); }
+  .review-item.wrong { border-left-color: var(--accent-rose); }
+  .review-item .r-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+  .review-item .r-mark { font-weight: 600; }
+  .review-item.wrong .r-mark { color: var(--accent-rose); }
+  .review-item:not(.wrong) .r-mark { color: var(--accent-aurora); }
+  .review-item .r-q { font-family: var(--font-display); font-size: 15px; color: var(--text-primary); margin-bottom: 4px; line-height: 1.5; }
+  .review-item .r-a { font-size: 12.5px; color: var(--accent-gold); line-height: 1.6; }
+  .review-item.preview-item { border-left-color: var(--panel-border-strong); display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .preview-item .p-main { flex: 1; min-width: 0; }
+  .preview-item .p-history { flex-shrink: 0; display: flex; gap: 12px; padding-top: 2px; }
+  .preview-item .p-history .hist-slot { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 9.5px; color: var(--text-muted); letter-spacing: 0.03em; }
+  .preview-item .p-history input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent-aurora); cursor: default; }
+
+  .result-actions { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .screen { width: 100%; display: none; }
+  .screen.active { display: block; }
+  .screen-inner-hidden { display: none !important; }
+
+  footer.foot-note { margin-top: 10px; color: var(--text-muted); font-size: 11px; text-align: center; opacity: 0.7; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="backdrop">
+  <div class="nebula one"></div>
+  <div class="nebula two"></div>
+  <div id="stars"></div>
+</div>
+
+<div class="shell">
+
+  <header class="masthead">
+    <h1>星々のクイズ</h1>
+    <p>問題と答えのファイルを読み込み、フラッシュカード形式で理解度を確かめます。答えを見て、自分で正解・不正解を判定してください。</p>
+  </header>
+
+  <!-- ===== Screen: Landing (code entry + create) ===== -->
+  <section id="screen-upload" class="screen active">
+
+    <div class="hud-panel" id="panel-code-entry">
+      <div class="panel-title">コードでクイズを始める</div>
+      <div class="panel-sub">共有された4桁のコードを入力してください。</div>
+      <div class="code-entry-row">
+        <input type="text" id="code-input" inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="0000">
+        <button class="primary" id="btn-start-by-code">開始</button>
+      </div>
+      <div id="code-error" class="error-msg" style="display:none;"></div>
+    </div>
+
+    <div class="divider-row" id="divider-row"><span>または</span></div>
+
+    <div class="hud-panel" id="panel-create">
+      <div class="panel-title">クイズを作成してコードを発行する</div>
+      <div id="resume-bar-slot"></div>
+
+      <label class="dropzone" id="dropzone" for="file-input">
+        <span class="glyph">✦</span>
+        <span class="main-label">ファイルをドラッグ、またはクリックして選択</span>
+        <span class="sub-label">CSV / Excel(.xlsx, .xls)に対応</span>
+      </label>
+      <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
+
+      <div class="format-hint">
+        1行目は見出し・データいずれも可。各行の<strong>1列目を問題</strong>、<strong>2列目を答え</strong>として読み込みます。<br>
+        例: <code>問題,答え</code> / <code>富士山の標高は?,3776m</code>
+      </div>
+
+      <div id="upload-error" class="error-msg" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- ===== Screen: Create confirm (title + code issuance) ===== -->
+  <section id="screen-create-confirm" class="screen">
+    <div class="hud-panel">
+      <div id="create-form-wrap">
+        <div class="preview-heading" id="create-confirm-heading"></div>
+
+        <div class="field-row">
+          <label for="quiz-title-input">クイズのタイトル(任意)</label>
+          <input type="text" id="quiz-title-input" maxlength="60" placeholder="例: 英単語テスト1">
+        </div>
+
+        <div class="field-row">
+          <label for="quiz-code-input">配布コード(4桁・生徒に共有します)</label>
+          <div class="code-entry-row">
+            <input type="text" id="quiz-code-input" inputmode="numeric" maxlength="4" pattern="[0-9]*">
+            <button class="ghost" id="btn-regenerate-code">生成し直す</button>
+          </div>
+        </div>
+
+        <div id="create-confirm-note" class="error-msg" style="display:none;"></div>
+
+        <div class="result-actions">
+          <button class="primary" id="btn-save-quiz">JSONファイルをダウンロード</button>
+          <button class="ghost" id="btn-skip-code">コードなしでプレビュー</button>
+          <button class="ghost" id="btn-cancel-create">キャンセル</button>
+        </div>
+      </div>
+
+      <div id="create-success-wrap" class="screen-inner-hidden">
+        <div class="score-readout">
+          <div class="big-score" id="issued-code-big">0000</div>
+          <div class="score-sub">ファイルをダウンロードしました</div>
+        </div>
+        <div class="format-hint">
+          ダウンロードした <code id="issued-filename-code">0000.json</code> を、GitHubリポジトリの <code>quizzes/</code> フォルダに追加してpushしてください。反映後、このコードで開始できるようになります。
+        </div>
+        <div class="result-actions">
+          <button class="primary" id="btn-goto-preview">このままプレビューへ進む(この端末で今すぐ試す)</button>
+          <button class="ghost" id="btn-back-landing-2">トップへ戻る</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Screen: Preview / confirm before Start ===== -->
+  <section id="screen-preview" class="screen">
+    <div class="hud-panel">
+      <div class="preview-heading" id="preview-heading"></div>
+
+      <div class="count-select-row">
+        <label for="question-count-input">出題数</label>
+        <input type="number" id="question-count-input" min="1" step="1">
+        <span class="count-select-note" id="count-select-note"></span>
+      </div>
+
+      <div class="order-toggle" role="group" aria-label="出題順を選ぶ">
+        <button type="button" class="ghost" id="order-sequential">順番通り</button>
+        <button type="button" class="ghost" id="order-shuffle">シャッフル</button>
+      </div>
+
+      <div class="review-list" id="preview-list"></div>
+
+      <div class="result-actions">
+        <button class="primary" id="btn-start-quiz">Start</button>
+        <button class="ghost" id="btn-back-to-upload">トップへ戻る</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Screen: Quiz ===== -->
+  <section id="screen-quiz" class="screen">
+    <div class="progress-row">
+      <span>観測ログ</span>
+      <span><span class="count" id="progress-count">0 / 0</span></span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+
+    <div class="hud-panel">
+      <div class="card-scene">
+        <div class="card-inner" id="card-inner">
+          <div class="card-face front">
+            <div class="face-label">問題</div>
+            <div class="question-text" id="question-text"></div>
+            <div class="reveal-row">
+              <button class="primary" id="btn-reveal">答えを見る</button>
+            </div>
+          </div>
+          <div class="card-face back">
+            <div class="face-label answer-label">答え</div>
+            <div class="answer-text" id="answer-text"></div>
+            <div class="card-actions">
+              <button class="correct" id="btn-correct">◎ 正解だった</button>
+              <button class="incorrect" id="btn-incorrect">× 不正解だった</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="foot-note">中断しても大丈夫です。コードがあればいつでもまた呼び出せます。</footer>
+  </section>
+
+  <!-- ===== Screen: Results ===== -->
+  <section id="screen-results" class="screen">
+    <div class="hud-panel">
+      <div class="score-readout">
+        <div class="big-score" id="score-big">0%</div>
+        <div class="score-sub" id="score-sub">0 / 0 問正解</div>
+      </div>
+
+      <div class="review-list" id="review-list"></div>
+
+      <div class="result-actions">
+        <button class="primary" id="btn-retry">もう一度この問題で挑戦</button>
+        <button class="ghost" id="btn-new-file">トップへ戻る</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "space_flashcard_dataset_v1";
+  var HISTORY_KEY = "space_flashcard_history_v1";
+  var QUIZ_DIR = "quizzes/"; // relative folder read via fetch: quizzes/<code>.json
+
+  var state = {
+    dataset: [],
+    index: 0,
+    results: [],
+    pendingDataset: [],
+    pendingTitle: "",
+    currentCode: null,
+    orderMode: "sequential"
+  };
+
+  // ---------- starfield ----------
+  function buildStars() {
+    var container = document.getElementById("stars");
+    var count = window.innerWidth < 600 ? 60 : 110;
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < count; i++) {
+      var s = document.createElement("div");
+      s.className = "star";
+      var size = Math.random() * 2 + 1;
+      s.style.width = size + "px";
+      s.style.height = size + "px";
+      s.style.left = (Math.random() * 100) + "%";
+      s.style.top = (Math.random() * 100) + "%";
+      s.style.animationDelay = (Math.random() * 4.5) + "s";
+      s.style.animationDuration = (3 + Math.random() * 3) + "s";
+      frag.appendChild(s);
+    }
+    container.appendChild(frag);
+  }
+
+  // ---------- local storage: last-used dataset (per-device convenience) ----------
+  function saveDataset(rows) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch (e) {}
+  }
+  function loadSavedDataset() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      return (Array.isArray(parsed) && parsed.length > 0) ? parsed : null;
+    } catch (e) { return null; }
+  }
+  function clearSavedDataset() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  }
+
+  // ---------- local storage: per-question history (always local, personal) ----------
+  function loadHistory() {
+    try {
+      var raw = localStorage.getItem(HISTORY_KEY);
+      var parsed = raw ? JSON.parse(raw) : {};
+      return (parsed && typeof parsed === "object") ? parsed : {};
+    } catch (e) { return {}; }
+  }
+  function saveHistory(map) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(map)); } catch (e) {}
+  }
+  function recordHistory(results) {
+    var map = loadHistory();
+    results.forEach(function (r) {
+      var arr = map[r.question] || [];
+      arr.unshift(r.correct);
+      map[r.question] = arr.slice(0, 2);
+    });
+    saveHistory(map);
+  }
+
+  // ---------- screens ----------
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (el) {
+      el.classList.toggle("active", el.id === id);
+    });
+  }
+
+  // ---------- file parsing ----------
+  var HEADER_WORDS = ["質問", "問題", "question", "q", "答え", "回答", "answer", "a"];
+
+  function looksLikeHeader(row) {
+    if (!row || row.length < 1) return false;
+    var a = String(row[0] || "").trim().toLowerCase();
+    var b = String(row[1] || "").trim().toLowerCase();
+    return HEADER_WORDS.indexOf(a) !== -1 || HEADER_WORDS.indexOf(b) !== -1;
+  }
+
+  function rowsToDataset(rows) {
+    var startIdx = 0;
+    if (rows.length > 0 && looksLikeHeader(rows[0])) startIdx = 1;
+    var out = [];
+    for (var i = startIdx; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row) continue;
+      var q = row[0] !== undefined ? String(row[0]).trim() : "";
+      var a = row[1] !== undefined ? String(row[1]).trim() : "";
+      if (q === "" && a === "") continue;
+      if (q === "" || a === "") continue;
+      out.push({ question: q, answer: a });
+    }
+    return out;
+  }
+
+  function handleFile(file) {
+    var errorBox = document.getElementById("upload-error");
+    errorBox.style.display = "none";
+
+    var name = file.name || "";
+    var isCsv = /\.csv$/i.test(name);
+
+    function onParsed(rows) {
+      var dataset = rowsToDataset(rows);
+      if (dataset.length === 0) {
+        errorBox.textContent = "問題と答えを読み取れませんでした。各行に1列目=問題、2列目=答えがあるか確認してください。";
+        errorBox.style.display = "block";
+        return;
+      }
+      saveDataset(dataset);
+      openCreateConfirm(dataset);
+    }
+
+    function onError() {
+      errorBox.textContent = "ファイルを読み込めませんでした。CSVまたはExcel形式か確認してください。";
+      errorBox.style.display = "block";
+    }
+
+    try {
+      var reader = new FileReader();
+      reader.onerror = onError;
+      if (isCsv) {
+        reader.onload = function (e) {
+          try {
+            var wb = XLSX.read(e.target.result, { type: "string" });
+            var sheet = wb.Sheets[wb.SheetNames[0]];
+            var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            onParsed(rows);
+          } catch (err) { onError(); }
+        };
+        reader.readAsText(file);
+      } else {
+        reader.onload = function (e) {
+          try {
+            var data = new Uint8Array(e.target.result);
+            var wb = XLSX.read(data, { type: "array" });
+            var sheet = wb.Sheets[wb.SheetNames[0]];
+            var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            onParsed(rows);
+          } catch (err) { onError(); }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    } catch (err) {
+      onError();
+    }
+  }
+
+  // ---------- create + issue code (downloads a quizzes/<code>.json file) ----------
+  function generateCode() {
+    return String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+  }
+
+  function downloadJsonFile(filename, dataObj) {
+    try {
+      var blob = new Blob([JSON.stringify(dataObj, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function openCreateConfirm(dataset) {
+    state.pendingDataset = dataset;
+
+    document.getElementById("quiz-title-input").value = "";
+    document.getElementById("create-confirm-note").style.display = "none";
+    document.getElementById("create-form-wrap").classList.remove("screen-inner-hidden");
+    document.getElementById("create-success-wrap").classList.add("screen-inner-hidden");
+    document.getElementById("quiz-code-input").value = generateCode();
+
+    var heading = document.getElementById("create-confirm-heading");
+    heading.innerHTML = "";
+    var big = document.createElement("div");
+    big.className = "count-big";
+    big.textContent = dataset.length + " 問を読み込みました";
+    var note = document.createElement("div");
+    note.className = "count-note";
+    note.textContent = "タイトルとコードを確認してダウンロードしてください";
+    heading.appendChild(big);
+    heading.appendChild(note);
+
+    showScreen("screen-create-confirm");
+  }
+
+  function saveQuiz() {
+    var codeInput = document.getElementById("quiz-code-input");
+    var code = codeInput.value.trim();
+    var noteEl = document.getElementById("create-confirm-note");
+    noteEl.style.display = "none";
+
+    if (!/^[0-9]{4}$/.test(code)) {
+      noteEl.textContent = "コードは4桁の数字で入力してください。";
+      noteEl.style.display = "block";
+      return;
+    }
+
+    var title = document.getElementById("quiz-title-input").value.trim();
+    var filename = code + ".json";
+    var ok = downloadJsonFile(filename, { title: title, dataset: state.pendingDataset });
+
+    if (!ok) {
+      noteEl.textContent = "ファイルの生成に失敗しました。ブラウザのダウンロード設定をご確認のうえ、もう一度お試しください。";
+      noteEl.style.display = "block";
+      return;
+    }
+
+    state.currentCode = code;
+    state.pendingTitle = title;
+    document.getElementById("issued-code-big").textContent = code;
+    document.getElementById("issued-filename-code").textContent = filename;
+    document.getElementById("create-form-wrap").classList.add("screen-inner-hidden");
+    document.getElementById("create-success-wrap").classList.remove("screen-inner-hidden");
+  }
+
+  function startByCode() {
+    var codeInput = document.getElementById("code-input");
+    var code = codeInput.value.trim();
+    var errEl = document.getElementById("code-error");
+    errEl.style.display = "none";
+
+    if (!/^[0-9]{4}$/.test(code)) {
+      errEl.textContent = "4桁の数字で入力してください。";
+      errEl.style.display = "block";
+      return;
+    }
+
+    var btn = document.getElementById("btn-start-by-code");
+    btn.disabled = true;
+    var originalLabel = btn.textContent;
+    btn.textContent = "確認中...";
+
+    fetch(QUIZ_DIR + code + ".json", { cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("not found");
+        return res.json();
+      })
+      .then(function (data) {
+        var dataset = Array.isArray(data.dataset) ? data.dataset : [];
+        if (dataset.length === 0) {
+          errEl.textContent = "このクイズにはまだ問題がありません。";
+          errEl.style.display = "block";
+          return;
+        }
+        state.pendingTitle = typeof data.title === "string" ? data.title : "";
+        state.currentCode = code;
+        showPreview(dataset);
+      })
+      .catch(function () {
+        errEl.textContent = "コードが見つかりませんでした。「" + QUIZ_DIR + code + ".json」が正しく配置されているか、コードが合っているか確認してください。";
+        errEl.style.display = "block";
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      });
+  }
+
+  // ---------- order / selection helpers ----------
+  function shuffleArray(source) {
+    var arr = source.slice();
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function pickAndOrderDataset(dataset, count, orderMode) {
+    var total = dataset.length;
+    var c = Math.min(Math.max(1, count || total), total);
+    var indices = dataset.map(function (_, i) { return i; });
+    indices = shuffleArray(indices).slice(0, c);
+    if (orderMode !== "shuffle") indices.sort(function (a, b) { return a - b; });
+    return indices.map(function (i) { return dataset[i]; });
+  }
+
+  // ---------- preview screen ----------
+  function showPreview(dataset) {
+    state.pendingDataset = dataset;
+    setOrderMode("sequential");
+
+    var countInput = document.getElementById("question-count-input");
+    countInput.max = String(dataset.length);
+    countInput.value = String(dataset.length);
+    document.getElementById("count-select-note").textContent = "/ 読み込み " + dataset.length + " 問中";
+
+    var heading = document.getElementById("preview-heading");
+    heading.innerHTML = "";
+    var big = document.createElement("div");
+    big.className = "count-big";
+    big.textContent = (state.pendingTitle ? "「" + state.pendingTitle + "」 " : "") + dataset.length + " 問を読み込みました";
+    var note = document.createElement("div");
+    note.className = "count-note";
+    note.textContent = "内容を確認し、出題数と出題順を選んで開始してください";
+    heading.appendChild(big);
+    heading.appendChild(note);
+
+    var history = loadHistory();
+
+    var list = document.getElementById("preview-list");
+    list.innerHTML = "";
+    dataset.forEach(function (item, i) {
+      var pastResults = history[item.question] || [];
+
+      var div = document.createElement("div");
+      div.className = "review-item preview-item";
+
+      var main = document.createElement("div");
+      main.className = "p-main";
+      var head = document.createElement("div");
+      head.className = "r-head";
+      var idx = document.createElement("span");
+      idx.textContent = "問 " + (i + 1);
+      head.appendChild(idx);
+      main.appendChild(head);
+      var q = document.createElement("div");
+      q.className = "r-q";
+      q.textContent = item.question;
+      main.appendChild(q);
+      var a = document.createElement("div");
+      a.className = "r-a";
+      a.textContent = "答え: " + item.answer;
+      main.appendChild(a);
+      div.appendChild(main);
+
+      var historyBox = document.createElement("div");
+      historyBox.className = "p-history";
+      ["前回", "前々回"].forEach(function (label, slotIdx) {
+        var slot = document.createElement("div");
+        slot.className = "hist-slot";
+        var labelEl = document.createElement("span");
+        labelEl.textContent = label;
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.disabled = true;
+        checkbox.checked = pastResults[slotIdx] === true;
+        slot.appendChild(labelEl);
+        slot.appendChild(checkbox);
+        historyBox.appendChild(slot);
+      });
+      div.appendChild(historyBox);
+
+      list.appendChild(div);
+    });
+
+    showScreen("screen-preview");
+  }
+
+  function setOrderMode(mode) {
+    state.orderMode = mode;
+    document.getElementById("order-sequential").classList.toggle("active", mode === "sequential");
+    document.getElementById("order-shuffle").classList.toggle("active", mode === "shuffle");
+  }
+
+  // ---------- quiz flow ----------
+  function startQuiz(dataset) {
+    state.dataset = dataset;
+    state.index = 0;
+    state.results = [];
+    showScreen("screen-quiz");
+    renderCard();
+  }
+
+  function renderCard() {
+    var item = state.dataset[state.index];
+    var cardInner = document.getElementById("card-inner");
+
+    cardInner.classList.add("no-anim");
+    cardInner.classList.remove("flipped");
+    void cardInner.offsetWidth;
+
+    document.getElementById("question-text").textContent = item.question;
+    document.getElementById("answer-text").textContent = item.answer;
+    document.getElementById("progress-count").textContent = (state.index + 1) + " / " + state.dataset.length;
+    var pct = (state.index / state.dataset.length) * 100;
+    document.getElementById("progress-fill").style.width = pct + "%";
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        cardInner.classList.remove("no-anim");
+      });
+    });
+  }
+
+  function flipCard() {
+    document.getElementById("card-inner").classList.add("flipped");
+  }
+
+  function judge(isCorrect) {
+    var item = state.dataset[state.index];
+    state.results.push({ question: item.question, answer: item.answer, correct: isCorrect });
+
+    var panel = document.getElementById("card-inner").closest(".hud-panel");
+    panel.style.setProperty("--flash-color", isCorrect ? "var(--accent-aurora)" : "var(--accent-rose)");
+    panel.classList.remove("card-flash");
+    void panel.offsetWidth;
+    panel.classList.add("card-flash");
+
+    setTimeout(function () {
+      state.index++;
+      if (state.index < state.dataset.length) {
+        renderCard();
+      } else {
+        showResults();
+      }
+    }, 260);
+  }
+
+  function showResults() {
+    var total = state.results.length;
+    var correctCount = state.results.filter(function (r) { return r.correct; }).length;
+    var pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+
+    recordHistory(state.results);
+
+    document.getElementById("score-big").textContent = pct + "%";
+    document.getElementById("score-sub").textContent = correctCount + " / " + total + " 問正解";
+
+    var list = document.getElementById("review-list");
+    list.innerHTML = "";
+    state.results.forEach(function (r, i) {
+      var div = document.createElement("div");
+      div.className = "review-item" + (r.correct ? "" : " wrong");
+      var head = document.createElement("div");
+      head.className = "r-head";
+      var idxSpan = document.createElement("span");
+      idxSpan.textContent = "問 " + (i + 1);
+      var markSpan = document.createElement("span");
+      markSpan.className = "r-mark";
+      markSpan.textContent = r.correct ? "◎ 正解" : "× 不正解";
+      head.appendChild(idxSpan);
+      head.appendChild(markSpan);
+      div.appendChild(head);
+      var q = document.createElement("div");
+      q.className = "r-q";
+      q.textContent = r.question;
+      div.appendChild(q);
+      var a = document.createElement("div");
+      a.className = "r-a";
+      a.textContent = "答え: " + r.answer;
+      div.appendChild(a);
+      list.appendChild(div);
+    });
+
+    showScreen("screen-results");
+  }
+
+  // ---------- landing screen wiring ----------
+  function renderResumeBar() {
+    var slot = document.getElementById("resume-bar-slot");
+    slot.innerHTML = "";
+    var saved = loadSavedDataset();
+    if (!saved) return;
+    var bar = document.createElement("div");
+    bar.className = "resume-bar";
+    var span = document.createElement("span");
+    span.textContent = "前回読み込んだ " + saved.length + " 問のデータがあります。";
+    var btn = document.createElement("button");
+    btn.className = "primary";
+    btn.textContent = "これで始める";
+    btn.addEventListener("click", function () {
+      state.pendingTitle = "";
+      showPreview(saved);
+    });
+    bar.appendChild(span);
+    bar.appendChild(btn);
+    slot.appendChild(bar);
+  }
+
+  function resetLanding() {
+    document.getElementById("upload-error").style.display = "none";
+    document.getElementById("code-error").style.display = "none";
+    document.getElementById("code-input").value = "";
+    document.getElementById("file-input").value = "";
+    state.pendingTitle = "";
+    renderResumeBar();
+    showScreen("screen-upload");
+  }
+
+  function initLandingScreen() {
+    var dropzone = document.getElementById("dropzone");
+    var fileInput = document.getElementById("file-input");
+
+    fileInput.addEventListener("change", function (e) {
+      if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    ["dragenter", "dragover"].forEach(function (evt) {
+      dropzone.addEventListener(evt, function (e) { e.preventDefault(); dropzone.classList.add("dragover"); });
+    });
+    ["dragleave", "drop"].forEach(function (evt) {
+      dropzone.addEventListener(evt, function (e) { e.preventDefault(); dropzone.classList.remove("dragover"); });
+    });
+    dropzone.addEventListener("drop", function (e) {
+      var file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+
+    renderResumeBar();
+  }
+
+  // ---------- global button wiring ----------
+  document.getElementById("btn-reveal").addEventListener("click", flipCard);
+  document.getElementById("btn-correct").addEventListener("click", function () { judge(true); });
+  document.getElementById("btn-incorrect").addEventListener("click", function () { judge(false); });
+  document.getElementById("btn-retry").addEventListener("click", function () { startQuiz(state.dataset); });
+  document.getElementById("btn-new-file").addEventListener("click", function () {
+    clearSavedDataset();
+    resetLanding();
+  });
+
+  document.getElementById("order-sequential").addEventListener("click", function () { setOrderMode("sequential"); });
+  document.getElementById("order-shuffle").addEventListener("click", function () { setOrderMode("shuffle"); });
+  document.getElementById("btn-start-quiz").addEventListener("click", function () {
+    var countInput = document.getElementById("question-count-input");
+    var requested = parseInt(countInput.value, 10);
+    if (isNaN(requested) || requested < 1) requested = state.pendingDataset.length;
+    var dataset = pickAndOrderDataset(state.pendingDataset, requested, state.orderMode);
+    startQuiz(dataset);
+  });
+  document.getElementById("btn-back-to-upload").addEventListener("click", resetLanding);
+
+  document.getElementById("btn-start-by-code").addEventListener("click", startByCode);
+  document.getElementById("code-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") startByCode();
+  });
+
+  document.getElementById("btn-save-quiz").addEventListener("click", saveQuiz);
+  document.getElementById("btn-skip-code").addEventListener("click", function () {
+    state.pendingTitle = "";
+    showPreview(state.pendingDataset);
+  });
+  document.getElementById("btn-cancel-create").addEventListener("click", resetLanding);
+  document.getElementById("btn-goto-preview").addEventListener("click", function () {
+    showPreview(state.pendingDataset);
+  });
+  document.getElementById("btn-back-landing-2").addEventListener("click", resetLanding);
+  document.getElementById("btn-regenerate-code").addEventListener("click", function () {
+    document.getElementById("quiz-code-input").value = generateCode();
+  });
+
+  // polyfill-ish helper used above
+  Element.prototype.closest = Element.prototype.closest || function (sel) {
+    var el = this;
+    while (el && el.nodeType === 1) {
+      if (el.matches(sel)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  };
+
+  buildStars();
+  initLandingScreen();
+})();
+</script>
+
+</body>
+</html>
